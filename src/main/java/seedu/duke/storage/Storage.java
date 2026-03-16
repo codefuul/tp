@@ -71,6 +71,16 @@ public class Storage {
         switch (type) {
         case "T":
             return new Todo(moduleCode, description, isDone);
+        case "D":
+            if (parts.length < 5) {
+                throw new ModuleSyncException("Corrupted deadline entry: " + line);
+            }
+            try {
+                java.time.LocalDate byDate = java.time.LocalDate.parse(parts[4]);
+                return new seedu.duke.task.Deadline(moduleCode, description, isDone, byDate);
+            } catch (java.time.format.DateTimeParseException e) {
+                throw new ModuleSyncException("Corrupted deadline date in entry: " + line);
+            }
         default:
             throw new ModuleSyncException("Unsupported task type: " + type);
         }

@@ -20,6 +20,9 @@ public class Parser {
         if (trimmed.toLowerCase().startsWith("add")) {
             return parseAdd(trimmed);
         }
+        if (trimmed.toLowerCase().startsWith("deadline")) {
+            return parseAddDeadline(trimmed);
+        }
         if (trimmed.equalsIgnoreCase("list")) {
             return new ListCommand();
         }
@@ -58,6 +61,43 @@ public class Parser {
             throw new ModuleSyncException("Usage: add /mod MOD /task DESCRIPTION");
         }
         return new AddTodoCommand(module, task);
+    }
+
+    private Command parseAddDeadline(String input) throws ModuleSyncException {
+        String remainder = input.length() > 8 ? input.substring(8).trim() : "";
+        if (remainder.isEmpty()) {
+            throw new ModuleSyncException("Usage: deadline /mod MOD /task DESCRIPTION /by YYYY-MM-DD");
+        }
+
+        String[] tokens = remainder.split("/");
+        String module = null;
+        String task = null;
+        String by = null;
+        for (String token : tokens) {
+            String trimmed = token.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            String lower = trimmed.toLowerCase();
+            if (lower.startsWith("mod ")) {
+                module = trimmed.substring(4).trim();
+            } else if (lower.startsWith("task ")) {
+                task = trimmed.substring(5).trim();
+            } else if (lower.startsWith("by ")) {
+                by = trimmed.substring(3).trim();
+            }
+        }
+
+        if (module == null || module.isEmpty() || task == null || task.isEmpty() || by == null || by.isEmpty()) {
+            throw new ModuleSyncException("Usage: deadline /mod MOD /task DESCRIPTION /by YYYY-MM-DD");
+        }
+        
+        try {
+            java.time.LocalDate byDate = java.time.LocalDate.parse(by);
+            return new seedu.duke.command.AddDeadlineCommand(module, task, byDate);
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new ModuleSyncException("Invalid date format. Use yyyy-MM-dd");
+        }
     }
 
     private Command parseMark(String input) throws ModuleSyncException {
