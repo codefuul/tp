@@ -12,6 +12,8 @@ public class AddTodoCommand extends Command {
     private final String description;
 
     public AddTodoCommand(String moduleCode, String description) {
+        assert moduleCode != null && !moduleCode.trim().isEmpty() : "Module code must be provided";
+        assert description != null && !description.trim().isEmpty() : "Task description must be provided";
         this.moduleCode = moduleCode;
         this.description = description;
     }
