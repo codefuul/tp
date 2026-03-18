@@ -54,4 +54,20 @@ public class Ui {
             }
         }
     }
+
+    public void showTaskMarked(Task task, int taskNumber) {
+        System.out.println("Nice! I've marked this task as done:");
+        System.out.println("  " + task.formatForList(taskNumber));
+    }
+
+    public void showTaskUnmarked(Task task, int taskNumber) {
+        System.out.println("OK, I've marked this task as not done yet:");
+        System.out.println("  " + task.formatForList(taskNumber));
+    }
+
+    public void showTaskDeleted(Task task, int totalTasks) {
+        System.out.println("Noted. I've removed this task:");
+        System.out.println("  [" + task.getModuleCode() + "] " + task.formatForList(0));
+        System.out.println("Now you have " + totalTasks + " task(s) in the list.");
+    }
 }
