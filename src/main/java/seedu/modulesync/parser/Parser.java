@@ -30,6 +30,7 @@ public class Parser {
     private static final String PREFIX_MOD = "mod ";
     private static final String PREFIX_TASK = "task ";
     private static final String PREFIX_DUE = "due ";
+    private static final String PREFIX_WEIGHTAGE = "w ";
 
     private static final int CMD_ADD_LENGTH = 3;
     private static final int CMD_MARK_LENGTH = 4;
@@ -39,6 +40,10 @@ public class Parser {
     private static final int PREFIX_MOD_LENGTH = 4;
     private static final int PREFIX_TASK_LENGTH = 5;
     private static final int PREFIX_DUE_LENGTH = 4;
+    private static final int PREFIX_WEIGHTAGE_LENGTH = 2;
+
+    private static final int MIN_WEIGHTAGE = 0;
+    private static final int MAX_WEIGHTAGE = 100;
 
     private static final int DATE_ONLY_LENGTH = 10;
     private static final int DATETIME_WITH_DASH_LENGTH = 15;
@@ -99,6 +104,7 @@ public class Parser {
         String module = extractFieldFromTokens(tokens, PREFIX_MOD, PREFIX_MOD_LENGTH);
         String task = extractFieldFromTokens(tokens, PREFIX_TASK, PREFIX_TASK_LENGTH);
         String due = extractFieldFromTokens(tokens, PREFIX_DUE, PREFIX_DUE_LENGTH);
+        String weightageRaw = extractFieldFromTokens(tokens, PREFIX_WEIGHTAGE, PREFIX_WEIGHTAGE_LENGTH);
 
         if (module == null || module.isEmpty() || task == null || task.isEmpty()) {
             throw new ModuleSyncException(ADD_USAGE);
@@ -106,12 +112,38 @@ public class Parser {
         assert module != null && !module.trim().isEmpty() : "Module code should be parsed for add command";
         assert task != null && !task.trim().isEmpty() : "Task description should be parsed for add command";
 
+        Integer weightage = parseWeightage(weightageRaw);
+
         if (due != null && !due.isEmpty()) {
-            return buildAddDeadlineCommand(module, task, due);
+            return buildAddDeadlineCommand(module, task, due, weightage);
         }
 
-        assert module != null && task != null : "Add todo command requires parsed module and task";
-        return new AddTodoCommand(module, task);
+        return new AddTodoCommand(module, task, weightage);
+    }
+
+    /**
+     * Parses an optional weightage string into an Integer.
+     * Returns null if no weightage token was provided.
+     *
+     * @param raw the raw weightage string, or null if the /w flag was absent
+     * @return the parsed weightage (0–100), or null
+     * @throws ModuleSyncException if the value is not a valid integer or out of range
+     */
+    private Integer parseWeightage(String raw) throws ModuleSyncException {
+        if (raw == null || raw.isEmpty()) {
+            return null;
+        }
+        try {
+            int value = Integer.parseInt(raw);
+            if (value < MIN_WEIGHTAGE || value > MAX_WEIGHTAGE) {
+                throw new ModuleSyncException("Weightage must be between " + MIN_WEIGHTAGE
+                        + " and " + MAX_WEIGHTAGE + ".");
+            }
+            return value;
+        } catch (NumberFormatException e) {
+            throw new ModuleSyncException("Weightage must be a whole number between "
+                    + MIN_WEIGHTAGE + " and " + MAX_WEIGHTAGE + ".");
+        }
     }
 
     /**
@@ -120,15 +152,17 @@ public class Parser {
      * @param module the module code
      * @param task   the task description
      * @param due    the raw due date string
+     * @param weightage the optional weightage (0–100), or null
      * @return a new {@link AddDeadlineCommand}
      * @throws ModuleSyncException if the due date string cannot be parsed
      */
-    private Command buildAddDeadlineCommand(String module, String task, String due) throws ModuleSyncException {
+    private Command buildAddDeadlineCommand(String module, String task, String due,
+                                           Integer weightage) throws ModuleSyncException {
         try {
             LocalDateTime byDate = parseDateTime(due);
             assert byDate != null : "Parsed deadline must not be null";
             assert module != null && task != null : "Add deadline command requires parsed module and task";
-            return new AddDeadlineCommand(module, task, byDate);
+            return new AddDeadlineCommand(module, task, byDate, weightage);
         } catch (DateTimeParseException e) {
             throw new ModuleSyncException("Invalid date format. Use yyyy-MM-dd or yyyy-MM-dd-HHmm");
         }
