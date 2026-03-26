@@ -1,9 +1,12 @@
 package seedu.modulesync.ui;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 import seedu.modulesync.module.Module;
 import seedu.modulesync.module.ModuleBook;
+import seedu.modulesync.task.Deadline;
 import seedu.modulesync.task.Task;
 
 public class Ui {
@@ -52,6 +55,55 @@ public class Ui {
                 System.out.println(task.formatForList(taskNumber));
                 taskNumber++;
             }
+        }
+    }
+
+    /**
+     * Displays all upcoming deadlines in chronological order.
+     * Helps the user plan their week by showing deadlines organized by proximity.
+     *
+     * @param moduleBook the module book containing all modules and tasks
+     */
+    public void showDeadlineList(ModuleBook moduleBook) {
+        // Collect all deadlines
+        List<DeadlineEntry> deadlines = new ArrayList<>();
+        int globalTaskNumber = 1;
+        
+        for (Module module : moduleBook.getModules()) {
+            for (Task task : module.getTasks().asUnmodifiableList()) {
+                if (task instanceof Deadline) {
+                    deadlines.add(new DeadlineEntry((Deadline) task, globalTaskNumber, module.getCode()));
+                }
+                globalTaskNumber++;
+            }
+        }
+
+        if (deadlines.isEmpty()) {
+            System.out.println("No deadlines found. Great job staying on top of your work!");
+            return;
+        }
+
+        // Sort by deadline (earliest first)
+        deadlines.sort((a, b) -> a.deadline.getBy().compareTo(b.deadline.getBy()));
+
+        System.out.println("Here are the upcoming deadlines:");
+        for (DeadlineEntry entry : deadlines) {
+            System.out.println(entry.deadline.formatForList(entry.taskNumber));
+        }
+    }
+
+    /**
+     * Helper class to track deadline information for sorting and display.
+     */
+    private static class DeadlineEntry {
+        final Deadline deadline;
+        final int taskNumber;
+        final String moduleCode;
+
+        DeadlineEntry(Deadline deadline, int taskNumber, String moduleCode) {
+            this.deadline = deadline;
+            this.taskNumber = taskNumber;
+            this.moduleCode = moduleCode;
         }
     }
 
