@@ -312,6 +312,10 @@ public class Parser {
             }
         }
         for (String token : tokens) {
+            // If /deadlines is combined with any other token, show a /deadlines-specific usage error.
+            if (token.equalsIgnoreCase(PREFIX_DEADLINES) && tokens.length > 1) {
+                throw new ModuleSyncException("Usage: list /deadlines");
+            }
             if (token.equalsIgnoreCase(PREFIX_NOT_DONE) || token.equalsIgnoreCase(PREFIX_LIST_MOD)) {
                 throw new ModuleSyncException("Usage: list /notdone /mod MOD");
             }
