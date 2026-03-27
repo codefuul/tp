@@ -29,6 +29,7 @@ public class Parser {
     private static final String CMD_DELETE = "delete";
 
     private static final String PREFIX_DEADLINES = "/deadlines";
+    private static final String PREFIX_NOT_DONE = "/notdone";
     private static final String PREFIX_MOD = "mod ";
     private static final String PREFIX_TASK = "task ";
     private static final String PREFIX_DUE = "due ";
@@ -291,7 +292,15 @@ public class Parser {
             assert cmd != null : "ListDeadlinesCommand must be created successfully";
             return cmd;
         }
-        throw new ModuleSyncException("Unknown list filter. Try: list /deadlines");
+        if (remainder.toLowerCase().contains(PREFIX_NOT_DONE.toLowerCase())) {
+            String[] tokens = remainder.split("/");
+            String module = extractFieldFromTokens(tokens, PREFIX_MOD, PREFIX_MOD_LENGTH);
+            if (module == null || module.isEmpty()) {
+                throw new ModuleSyncException("Usage: list /notdone /mod MOD");
+            }
+            return new ListCommand(module);
+        }
+        throw new ModuleSyncException("Unknown list filter. Try: list /deadlines or list /notdone /mod MOD");
     }
 
     /**

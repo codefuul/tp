@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import seedu.modulesync.command.AddTodoCommand;
+import seedu.modulesync.command.ListCommand;
 import seedu.modulesync.command.MarkCommand;
 import seedu.modulesync.command.UnmarkCommand;
 import seedu.modulesync.exception.ModuleSyncException;
@@ -39,5 +40,18 @@ class ParserTest {
         assertThrows(ModuleSyncException.class, () -> parser.parse("mark"));
         assertThrows(ModuleSyncException.class, () -> parser.parse("unmark"));
         assertThrows(ModuleSyncException.class, () -> parser.parse("mark abc"));
+    }
+
+    @Test
+    void parse_listNotDoneWithModule_returnsListCommand() throws ModuleSyncException {
+        Parser parser = new Parser();
+        assertTrue(parser.parse("list /notdone /mod CS2113") instanceof ListCommand);
+        assertTrue(parser.parse("list /mod CS2113 /notdone") instanceof ListCommand);
+    }
+
+    @Test
+    void parse_listNotDoneWithoutModule_throws() {
+        Parser parser = new Parser();
+        assertThrows(ModuleSyncException.class, () -> parser.parse("list /notdone"));
     }
 }

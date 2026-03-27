@@ -58,6 +58,36 @@ public class Ui {
         }
     }
 
+    public void showNotDoneTaskList(ModuleBook moduleBook, String moduleCode) {
+        if (moduleBook.countTotalTasks() == 0) {
+            System.out.println("No tasks found.");
+            return;
+        }
+
+        String targetModuleCode = moduleCode.toUpperCase();
+        List<String> lines = new ArrayList<>();
+        int globalTaskNumber = 1;
+
+        for (Module module : moduleBook.getModules()) {
+            for (Task task : module.getTasks().asUnmodifiableList()) {
+                if (module.getCode().equals(targetModuleCode) && !task.isDone()) {
+                    lines.add(task.formatForList(globalTaskNumber));
+                }
+                globalTaskNumber++;
+            }
+        }
+
+        if (lines.isEmpty()) {
+            System.out.println("No not done tasks found for " + targetModuleCode + ".");
+            return;
+        }
+
+        System.out.println("Here are the not done tasks for " + targetModuleCode + ":");
+        for (String line : lines) {
+            System.out.println(line);
+        }
+    }
+
     /**
      * Displays all upcoming deadlines in chronological order.
      * Helps the user plan their week by showing deadlines organized by proximity.
