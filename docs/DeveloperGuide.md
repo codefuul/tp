@@ -168,7 +168,7 @@ We chose the filter approach for consistency and extensibility.
 We chose ascending date order for simplicity and intuitive urgency ranking.
 
 
-//@@author Yeo-Chen-Xian
+//@@author Notchennie1
 ### [Feature] List Not Done Tasks by Module (`list /notdone /mod MOD`)
 
 #### Implementation
@@ -239,7 +239,7 @@ The following class diagram shows the main classes involved in listing not-done 
   * Cons: Would require separate commands or extra identifiers to refer to the original task.
 
 
-//@@author Yeo-Chen-Xian
+//@@author Notchennie1
 ### [Feature] Delete Task (`delete TASK_NUMBER`)
 
 #### Implementation
