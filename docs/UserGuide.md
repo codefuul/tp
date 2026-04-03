@@ -129,7 +129,7 @@ Example:
 
 **Q**: Will my data be lost if the application crashes?
 
-**A**: As long as your last command was successfully executed, all data is saved to `modules.txt` immediately after each command. If a command fails, no data is saved for that command.
+**A**: As long as your last successful command changed the task list, the updated data is saved to `modules.txt` immediately after that command (for example, `add`, `delete`, `mark`, and `unmark`). Commands that do not modify data, such as `list`, do not trigger a save. If a command fails, no data is saved for that command.
 
 ## Command Summary
 
