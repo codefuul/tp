@@ -125,7 +125,7 @@ Example:
 
 **Q**: What happens when I mark a task as done?
 
-**A**: Marking a task toggles its status. If it's not done, it will be marked as done (and will not appear in `list /notdone`). You can unmark it later using the `unmark` command.
+**A**: Marking a task sets its status to done. Once marked, it will not appear in `list /notdone`. You can change it back later using the `unmark` command.
 
 **Q**: Will my data be lost if the application crashes?
 
