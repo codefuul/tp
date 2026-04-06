@@ -235,14 +235,12 @@ public class Ui {
     private static class UrgentTaskEntry {
         final Task task;
         final int taskNumber;
-        final String moduleCode;
         final int weightage;
         final long daysLeft;
 
-        UrgentTaskEntry(Task task, int taskNumber, String moduleCode, int weightage, long daysLeft) {
+        UrgentTaskEntry(Task task, int taskNumber, int weightage, long daysLeft) {
             this.task = task;
             this.taskNumber = taskNumber;
-            this.moduleCode = moduleCode;
             this.weightage = weightage;
             this.daysLeft = daysLeft;
         }
