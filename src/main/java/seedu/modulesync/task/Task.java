@@ -100,21 +100,26 @@ public abstract class Task {
     }
 
     public String encode() {
+        java.util.List<String> fields = new java.util.ArrayList<>();
+        fields.add(moduleCode);
+        fields.add(String.valueOf(getTypeCode()));
+        fields.add(isDone ? "1" : "0");
+        fields.add(description);
+
         String extra = encodeExtra();
-        String completedAtStr = completedAt != null
-                ? completedAt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-                : "";
-        String base;
-        if (extra.isEmpty()) {
-            base = String.join(" | ", moduleCode, String.valueOf(getTypeCode()), isDone ? "1" : "0", description);
-        } else {
-            base = String.join(" | ", moduleCode, String.valueOf(getTypeCode()), isDone ? "1" : "0",
-                    description, extra);
+        if (!extra.isEmpty()) {
+            fields.add(extra);
         }
-        if (!completedAtStr.isEmpty()) {
-            base = base + " | completed:" + completedAtStr;
+
+        if (hasWeightage()) {
+            fields.add(String.valueOf(weightage));
         }
-        return base;
+
+        if (completedAt != null) {
+            fields.add("completed:" + completedAt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+        }
+
+        return String.join(" | ", fields);
     }
 
     protected String encodeExtra() {
