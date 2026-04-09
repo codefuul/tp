@@ -123,7 +123,7 @@ public class StatsCommand extends Command {
     /**
      * Value object holding the computed statistics for a module.
      */
-    static class ModuleStats {
+    private static class ModuleStats {
         final int totalTasks;
         final int completedOnTime;
         final int completedLate;
