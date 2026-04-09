@@ -27,6 +27,7 @@ import seedu.modulesync.command.SemesterStatsCommand;
 import seedu.modulesync.command.SetDeadlineCommand;
 import seedu.modulesync.command.SetWeightCommand;
 import seedu.modulesync.command.StatsCommand;
+import seedu.modulesync.command.SwitchSemesterCommand;
 import seedu.modulesync.command.UnarchiveModuleCommand;
 import seedu.modulesync.command.UnmarkCommand;
 import seedu.modulesync.exception.ModuleSyncException;
@@ -56,6 +57,7 @@ public class Parser {
     private static final String CMD_MODULE = "module";
     private static final String CMD_SEMESTER_STATS = "semesterstats";
     private static final String CMD_SEMESTER = "semester";
+    private static final String CMD_SWITCH = "switch";
     private static final String CMD_CAP = "cap";
 
     private static final String PREFIX_DEADLINES = "/deadlines";
@@ -628,8 +630,26 @@ public class Parser {
             String semesterName = parts[1].trim();
             return new NewSemesterCommand(semesterBook, semesterStorage, semesterName);
         }
+        if (remainder.toLowerCase().startsWith(CMD_SWITCH)) {
+            return parseSemesterSwitch(remainder);
+        }
         
-        throw new ModuleSyncException("Unknown semester command. Try: semester new SEMESTER_NAME or semester list");
+        throw new ModuleSyncException("Unknown semester command. Try: semester list or semester switch NAME");
+    }
+
+    /**
+     * Parses a "semester switch" command.
+     *
+     * @param remainder the portion after the word "semester"
+     * @return a command that switches to the requested semester
+     * @throws ModuleSyncException if the semester name is missing
+     */
+    private Command parseSemesterSwitch(String remainder) throws ModuleSyncException {
+        String semesterName = extractRemainder(remainder, CMD_SWITCH.length());
+        if (semesterName.isEmpty()) {
+            throw new ModuleSyncException("Usage: semester switch SEMESTER_NAME");
+        }
+        return new SwitchSemesterCommand(semesterBook, semesterStorage, semesterName);
     }
 
     /**
