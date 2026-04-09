@@ -383,7 +383,7 @@ The following class diagram shows the main classes involved in deletion and how 
   * Cons: Commands start duplicating model checks.
 
 
-### [Feature] List Registered Modules (`modules`)
+### [Feature] List Registered Modules (`module list`)
 
 #### Implementation
 
@@ -431,7 +431,7 @@ The following class diagram shows the main classes involved in listing modules a
   * Cons: Adds a new command and persistence requirements for modules without tasks.
 
 
-### [Feature] Semester Statistics (`semesterstats`)
+### [Feature] Semester Statistics (`semester stats SEMESTER_NAME`)
 
 #### Implementation
 
@@ -546,6 +546,7 @@ ModuleSync solves the problem of context-switching overhead for students who cur
 | v2.0 | student | restore an archived module | access its tasks again if I archived it by mistake |
 | v2.0 | student | create a new semester and switch to it | start a fresh task list without losing previous data |
 | v2.0 | student | switch to a past semester in read-only mode | safely reference old tasks and grades without risking accidental edits |
+| v2.1 | student | archive my current semester | transition to a new term while finalizing my academic records |
 | v2.0 | student | see which semester I am currently working in on startup | immediately know whether I am in the right context |
 
 ## Non-Functional Requirements
@@ -623,7 +624,7 @@ list /mod CS2113
 list /deadlines
 list /top 3
 list /notdone /mod CS2113
-modules
+module list
 ```
 
 Expected:
@@ -631,7 +632,7 @@ Expected:
 - `list /deadlines` shows only deadline tasks sorted earliest-first.
 - `list /top 3` shows the three tasks with the highest priority scores.
 - `list /notdone /mod CS2113` shows only incomplete CS2113 tasks, using **the same global indices as `list`**.
-- `modules` shows `CS2113 (4 task(s))` and `MA1521 (2 task(s))`.
+- `module list` shows `CS2113 (4 task(s))` and `MA1521 (2 task(s))`.
 
 ---
 
@@ -687,12 +688,12 @@ Expected:
 
 ```
 stats /mod CS2113
-semesterstats
+semester stats AY2526-S2
 ```
 
 Expected:
 - `stats /mod CS2113` shows total tasks, on-time/late/active counts and percentages, and average days-before-deadline (N/A until deadline tasks are marked done with a completion timestamp).
-- `semesterstats` shows module count, overall task counts and completion percentage, type breakdown, and weightage completion.
+- `semester stats AY2526-S2` shows module count, overall task counts and completion percentage, type breakdown, and weightage completion.
 
 ---
 
@@ -716,13 +717,13 @@ Expected:
 ```
 module archive /mod MA1521
 list
-modules
+module list
 module unarchive /mod MA1521
 list
 ```
 
 Expected:
-- After archiving: `list` no longer shows MA1521 tasks. `modules` still shows it marked `[archived]`.
+- After archiving: `list` no longer shows MA1521 tasks. `module list` still shows it marked `[archived]`.
 - After unarchiving: MA1521 tasks reappear in `list`.
 
 ---
@@ -750,6 +751,7 @@ semester switch AY2526-S2
 ```
 Then archive AY2526-S2 from within it:
 ```
+semester archive
 semester new AY2527-S1
 semester switch AY2526-S2
 add /mod CS2113 /task Should Fail

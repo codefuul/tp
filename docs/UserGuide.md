@@ -382,7 +382,7 @@ Example:
 
 * `module archive /mod CS1231S`
 
-Archived modules still appear in `modules`, and you can restore them later with `module unarchive`.
+Archived modules still appear in `module list`, and you can restore them later with `module unarchive`.
 
 ### Restoring an archived module: `module unarchive`
 
