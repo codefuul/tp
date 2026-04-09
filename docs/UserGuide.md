@@ -123,6 +123,40 @@ Example:
 
 * `semesterstats`
 
+### Viewing per-module completion statistics: `stats /mod`
+
+Shows a detailed task-completion breakdown for a single module, including on-time and late rates and average
+completion time relative to the deadline.
+
+Format: `stats /mod MODULE_CODE`
+
+The summary includes:
+
+* total tasks created for the module
+* number and percentage completed on time
+* number and percentage completed late
+* number and percentage currently active (not yet done)
+* average number of days before the deadline at which deadline tasks were completed (`N/A` if no deadline tasks
+  have been completed with a recorded timestamp)
+
+A task with no deadline (a todo) is always counted as completed on time when marked done.
+A deadline task completed before its due date counts as on time; after the due date counts as late.
+
+Example:
+
+* `stats /mod CS2113`
+
+Example output:
+
+```text
+===== Stats for CS2113 =====
+Total tasks created   : 4
+Completed on time     : 2 (50.0%)
+Completed late        : 1 (25.0%)
+Currently active      : 1 (25.0%)
+Avg completion time   : 3.0 day(s) before deadline
+```
+
 ### Listing not-done tasks for a module: `list /notdone`
 
 Shows only unfinished tasks for a specific module.
@@ -406,6 +440,7 @@ for that command.
 | List not-done tasks by module | `list /notdone /mod MODULE_CODE` |
 | List registered modules | `modules` |
 | View semester statistics | `semesterstats` |
+| View per-module statistics | `stats /mod MODULE_CODE` |
 | Mark task as done | `mark TASK_NUMBER` |
 | Mark all tasks in a module as done | `mark /mod MODULE_CODE /all` |
 | Unmark task as not done | `unmark TASK_NUMBER` |
