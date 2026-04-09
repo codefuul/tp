@@ -2,101 +2,186 @@
 
 ## Acknowledgements
 
-{list here sources of all reused/adapted ideas, code, documentation, and third-party libraries -- include links to the original source as well}
+* [CS2113 project template (AddressBook-Level 3)](https://github.com/se-edu/addressbook-level3) — project structure and Gradle build configuration
+* [JUnit 5](https://junit.org/junit5/) — unit and integration testing framework
+* [PlantUML](https://plantuml.com/) — UML diagram generation
 
-## Design & implementation
+---
 
-//@@author Huang-Hau-Shuan
-### [Feature] Task Weightage (`add ... [/w PERCENT]`)
+## Design
 
-#### Implementation
+### Architecture
 
-The Task Weightage feature allows students to assign a percentage value to a task, helping them
-prioritize assignments based on their contribution to the overall module grade. Since not all tasks
-have weightage, this feature supports both weighted and unweighted task creation in the existing
-`add` command flow and the core `Task` model.
+ModuleSync is structured as a layered architecture with five major components. Each layer depends only on layers below it — no inner component imports from `Ui` or `Parser`.
 
-The feature implements the following operations:
+```
+         ┌─────────────────────────────────────────┐
+         │               User (CLI)                │
+         └──────────────────┬──────────────────────┘
+                            │ stdin / stdout
+         ┌──────────────────▼──────────────────────┐
+         │                  Ui                     │
+         │  Reads all input. Prints all output.    │
+         └──────────────────┬──────────────────────┘
+                            │ raw String
+         ┌──────────────────▼──────────────────────┐
+         │                Parser                   │
+         │  Converts raw strings into Commands.    │
+         └──────────────────┬──────────────────────┘
+                            │ Command object
+         ┌──────────────────▼──────────────────────┐
+         │               ModuleSync                │
+         │  Main run loop. Dispatches commands.    │
+         │  Enforces read-only guard.              │
+         └──────┬───────────┬──────────────┬───────┘
+                │           │              │
+   ┌────────────▼──┐  ┌─────▼──────┐  ┌───▼────────────┐
+   │  Data Model   │  │  Storage   │  │  SemesterBook  │
+   │  SemesterBook │  │  Storage   │  │  Semester      │
+   │  Semester     │  │  Semester  │  │                │
+   │  ModuleBook   │  │  Storage   │  │                │
+   │  Module       │  │            │  │                │
+   │  TaskList     │  │            │  │                │
+   │  Task         │  │            │  │                │
+   └───────────────┘  └────────────┘  └────────────────┘
+```
 
-* `Parser#parse(String)` — Parses the user input to identify the `add` command and extracts the
-  optional `/w` argument when present, converting it to a validated integer.
-* `AddTodoCommand#execute(ModuleBook, Storage, Ui)` — Executes the creation of a new task. It
-  creates a `Todo` with optional weightage and adds it to the target module's `TaskList`.
-* `Task#setWeightage(int)` and `Task#getWeightage()` — Methods inside the core `Task` model to
-  store and retrieve the weightage value when it is provided.
+### Component Responsibilities
 
-Given below are example usage scenarios and how the task weightage mechanism behaves.
+**`Ui`** — The sole point of contact with the user. Reads `stdin` and writes `stdout`. Contains no business logic and knows nothing about the data model or file format.
 
-**Step 1.** The user inputs either:
-- `add /mod CS2113 /task Final Project /w 25` (weightage provided), or
-- `add /mod CS2113 /task Final Project` (weightage omitted).
+**`Parser`** — Converts a raw input string into the correct concrete `Command` subclass. All syntax validation (flag presence, integer range checks, blank-string guards) happens here. Returns a fully constructed command or throws `ModuleSyncException` with a user-readable message.
 
-**Step 2.** `ModuleSync#run()` calls `Ui#readCommand()`, which reads the raw input string from stdin
-and returns it.
+**`Command` (abstract)** — Encapsulates a single user intent. Every subclass holds the parameters extracted by `Parser` and implements `execute(ModuleBook, Storage, Ui)`. Commands that do not modify any data override `isMutating()` to return `false`, allowing `ModuleSync` to enforce the read-only guard centrally without per-command duplication. A second abstract subclass, `SemesterCommand`, extends `Command` for commands that operate on semester lifecycle (switch, archive, list semesters) and are never blocked by the read-only guard.
 
-**Step 3.** `ModuleSync#run()` passes the raw string to `Parser#parse(...)`. The parser extracts the
-module code and task description. If `/w` is present, it parses and validates the integer range
-(`0` to `100`) via the `parseWeightage` helper. If `/w` is absent, weightage is recorded as `null`.
+**Data Model** — Pure in-memory state with no I/O. The full ownership hierarchy is:
+`SemesterBook` → `Semester` → `ModuleBook` → `Module` → `TaskList` → `Task` (`Todo` | `Deadline`).
 
-**Step 4.** The `Parser` instantiates a new `AddTodoCommand` with the module code, description, and
-optional weightage, then returns it to `ModuleSync#run()`.
+**`Storage` / `SemesterStorage`** — All file I/O is isolated here. `Storage` handles one per-semester task file. `SemesterStorage` manages the multi-semester directory layout and the `current.txt` pointer that records which semester is active. Neither class knows about commands.
 
-**Step 5.** `ModuleSync#run()` calls `AddTodoCommand#execute(moduleBook, storage, ui)`.
+### Data Model
 
-**Step 6.** Inside `execute()`, the command retrieves the target `Module` from the `ModuleBook` by
-calling `ModuleBook#getOrCreate("CS2113")`.
+The following class diagram shows the full ownership hierarchy of the application's data model and the key fields on each class:
 
-**Step 7.** The command calls `Module#addTodo(description, weightage)`, which delegates to
-`TaskList#addTodo(moduleCode, description, weightage)`. The `TaskList` creates the `Todo` object
-and calls `Todo#setWeightage(int)` only when a weightage value is present.
+<img src="images/DataModelClassDiagram.png" alt="Full data model class diagram" />
 
-**Step 8.** `Storage#save(ModuleBook)` is called to persist the change to disk.
+> Generated from [`docs/diagrams/DataModelClassDiagram.puml`](diagrams/DataModelClassDiagram.puml)
 
-**Step 9.** Finally, `Ui#showTaskAdded(module, task, totalCount)` is called to display the newly
-added task. Weightage is shown only when provided.
+Note that `Task` is abstract, with `Todo` and `Deadline` as the only concrete subclasses. The `weightage: Integer` field on `Task` is nullable — `null` means no weightage has been assigned, and any value from `0` to `100` is a valid percentage weight.
 
-#### Sequence Diagram
+### Command Architecture
 
-The following sequence diagram illustrates the interactions between components when the user
-executes `add /mod CS2113 /task Final Project [/w 25]`:
+The following class diagram shows how all commands fit into the inheritance hierarchy and how `ModuleSync` and `Parser` relate to the abstract `Command` class:
 
-<img src="images/AddWeightageSequenceDiagram.png" alt="Sequence diagram for the add weightage command" />
+<img src="images/CommandArchitectureClassDiagram.png" alt="Command architecture class diagram" />
 
-> **Note:** The diagram above must be generated from
-> [`docs/diagrams/AddWeightageSequenceDiagram.puml`](diagrams/AddWeightageSequenceDiagram.puml)
-> and saved as `docs/images/AddWeightageSequenceDiagram.png`.
+> Generated from [`docs/diagrams/CommandArchitectureClassDiagram.puml`](diagrams/CommandArchitectureClassDiagram.puml)
+
+The key design decision is that `Parser` creates and `ModuleSync` dispatches to the **abstract** `Command` type — neither depends on any concrete subclass. A developer adding a new feature therefore only needs to:
+1. Create a class extending `Command` (or `SemesterCommand` for semester-level features).
+2. Implement `execute()`.
+3. Register the new keyword in `Parser`.
+
+Nothing else in the codebase needs to change.
+
+### Request Lifecycle
+
+A typical mutating command (e.g. `add /mod CS2113 /task Final Project /w 25`) flows through the application as follows:
+
+1. `Ui` reads the raw input string from `stdin`.
+2. `Parser` parses the string and constructs the appropriate `Command` subclass.
+3. `ModuleSync` calls `command.isMutating()`. If `true`, it also calls `semesterBook.isCurrentSemesterReadOnly()`. If the semester is archived, the command is rejected here — no per-command guard is needed.
+4. `ModuleSync` retrieves the active semester's `ModuleBook` and a per-semester `Storage` instance, then calls `command.execute(activeModuleBook, activeSemesterStorage, ui)`.
+5. The command mutates the data model, calls `storage.save(moduleBook)`, and calls the appropriate `ui.show...()` method.
+
+Read-only commands (e.g. `stats /mod CS2113`, `list`) skip step 3 entirely and never call `storage.save()`.
+
+---
+
+## Implementation
+
+### Assigning and Managing Task Weightage
+
+#### Overview
+
+This feature allows students to associate a percentage-based weight with any task, reflecting its contribution to the overall module grade. Weightage is entirely optional — tasks without it are fully functional and display normally.
+
+Two commands implement this feature:
+- `add /mod CODE /task DESCRIPTION [/w PERCENT]` — creates a task with an optional weightage at creation time.
+- `setweight TASK_NUMBER PERCENT` — assigns or updates the weightage of an existing task.
+
+Both commands follow the exact same Command Pattern described in the Architecture section: `Parser` validates input and constructs the command; `ModuleSync` dispatches it; the command mutates the model, saves, and notifies the Ui.
+
+#### Where Weightage Lives in the Data Model
+
+`weightage` is a field on the abstract `Task` class, typed as `Integer` (nullable). This decision has three consequences a future developer must understand:
+
+- **`null` means unweighted.** There is no separate `boolean isWeighted` flag. `hasWeightage()` is a convenience wrapper for `weightage != null`.
+- **Each task carries its own weight independently.** There is no per-module weight table. This supports heterogeneous weightages (e.g. a 30% exam and a 10% quiz under the same module) without any coupling between tasks.
+- **The sum across a module is not enforced.** A future `v2.1` feature that validates the 100% cap would need to add that logic to `Module` or `Parser` — the `Task` class itself has no such constraint.
+
+The following object diagram shows the heap state immediately after `add /mod CS2113 /task Final Project /w 25` executes. It uses the full path from `SemesterBook` down to the newly created `Todo` to illustrate how the ownership chain from the architecture section maps to a concrete runtime state:
+
+<img src="images/WeightedTaskObjectDiagram.png" alt="Object diagram: heap state after adding a weighted task" />
+
+> Generated from [`docs/diagrams/WeightedTaskObjectDiagram.puml`](diagrams/WeightedTaskObjectDiagram.puml)
+
+#### Execution Flow
+
+The following sequence diagram illustrates the interactions when the user executes `add /mod CS2113 /task Final Project /w 25`:
+
+<img src="images/AddWeightageSequenceDiagram.png" alt="Sequence diagram for the add weighted task command" />
+
+> Generated from [`docs/diagrams/AddWeightageSequenceDiagram.puml`](diagrams/AddWeightageSequenceDiagram.puml)
+
+The `setweight` command follows the identical architectural path — `Parser` → `SetWeightCommand` → `ModuleBook.getTaskByDisplayIndex()` → `task.setWeightage()` → `Storage.save()` → `Ui.showWeightSet()`. The only structural difference is that it retrieves an existing `Task` by display index rather than creating a new one. A separate sequence diagram for `setweight` would be a verbatim repeat and is therefore omitted.
+
+#### Validation and Error Handling
+
+All validation for weightage input is performed in `Parser` before any command object is constructed. This keeps every command constructor free of user-facing validation logic — if an `AddTodoCommand` or `SetWeightCommand` is ever instantiated, its parameters are already guaranteed valid. The `assert` statements in the constructors document these guarantees for future developers.
+
+The following activity diagram maps every decision point in the validation flow. It covers both `add /w` and `setweight` since they share the same validation rules:
+
+<img src="images/WeightageValidationActivityDiagram.png" alt="Activity diagram for weightage input validation" />
+
+> Generated from [`docs/diagrams/WeightageValidationActivityDiagram.puml`](diagrams/WeightageValidationActivityDiagram.puml)
 
 #### Design Considerations
 
-**Aspect: How to store the weightage value**
+**Aspect: Storing weightage as `Integer` (nullable) vs `int` + boolean flag**
 
-* **Alternative 1 (Current choice): Store weightage as an `int` (0-100).**
-    * Pros: Simple to parse, validate, and store. Eliminates floating-point precision issues when
-      summing weightages across a module.
-    * Cons: Does not support fractional weightages (e.g., `12.5%`), which some university modules
-      use for smaller assessments.
+* **Alternative 1 (current): `Integer weightage` — null means unweighted.**
+    * Pros: Single field, single null-check. No risk of a two-field inconsistency.
+    * Cons: Callers must handle `null`; less immediately obvious than a primitive to developers unfamiliar with the convention.
 
-* **Alternative 2: Store weightage as a `double`.**
-    * Pros: Supports precise fractional weightages.
-    * Cons: Adds complexity in input parsing and UI formatting to avoid displaying unwanted trailing
-      zeros. Rounding errors may arise when summing many fractional values.
+* **Alternative 2: `int weightage` + `boolean isWeighted`.**
+    * Pros: Explicit intent; no null handling.
+    * Cons: Two fields that must always be kept consistent. `isWeighted = true, weightage = 0` is technically valid but semantically ambiguous.
 
-We chose `int` for v2.0 to maintain a streamlined, predictable CLI experience while keeping
-validation straightforward.
+We chose `Integer` to keep the model lean and consistent with Java idiom for optional numeric values.
 
-**Aspect: Where to enforce the 0-100 validation**
+**Aspect: Where to validate the 0–100 range**
 
-* **Alternative 1 (Current choice): Validate in `Parser` when `/w` is present.**
-    * Pros: Fails fast at the logic boundary; command objects are created with either a valid
-      percentage or no percentage.
-    * Cons: Validation rules must remain synchronized with command/model expectations.
+* **Alternative 1 (current): Validate in `Parser` at parse time.**
+    * Pros: Invalid input is rejected before any object is constructed. Command constructors can use `assert` rather than defensive exception-throwing.
+    * Cons: Validation rules in `Parser` must be kept in sync with the constraints documented on `Task.setWeightage()`.
 
-* **Alternative 2: Validate inside `AddTodoCommand#execute()`.**
-    * Pros: Validation lives close to where the value is used.
-    * Cons: The `Command` layer would then need to handle user-facing error messages, blurring the
-      separation of concerns between parsing and execution.
+* **Alternative 2: Validate inside `Task.setWeightage()`.**
+    * Pros: Constraint is co-located with the field it guards.
+    * Cons: `setWeightage` would need to throw a checked exception, which would propagate through the storage loading path — where a silent warning-log-and-skip is more appropriate than a hard failure.
 
-//@@author heeelol
+**Aspect: Weightage field on `Task` vs. weightage map on `Module`**
+
+* **Alternative 1 (current): Field on `Task`.**
+    * Pros: Each task is self-contained. No coupling between tasks within a module. Trivially serialised per-task in the storage file.
+    * Cons: The 100% cap constraint (if ever added) must be enforced at a higher level.
+
+* **Alternative 2: `Map<Task, Integer>` on `Module`.**
+    * Pros: Centralises weight management; a 100% cap is easy to enforce.
+    * Cons: Complicates task removal (map entry must be cleaned up). Couples `Module` to task identity in a fragile way that breaks if tasks are ever replaced rather than mutated in-place.
+
+---
+
 ### [Feature] List Upcoming Deadlines (`list /deadlines`)
 
 #### Implementation
@@ -168,7 +253,6 @@ We chose the filter approach for consistency and extensibility.
 We chose ascending date order for simplicity and intuitive urgency ranking.
 
 
-//@@author Notchennie1
 ### [Feature] List Not Done Tasks by Module (`list /notdone /mod MOD`)
 
 #### Implementation
@@ -239,7 +323,6 @@ The following class diagram shows the main classes involved in listing not-done 
   * Cons: Would require separate commands or extra identifiers to refer to the original task.
 
 
-//@@author Notchennie1
 ### [Feature] Delete Task (`delete TASK_NUMBER`)
 
 #### Implementation
@@ -292,7 +375,7 @@ The following class diagram shows the main classes involved in deletion and how 
 **Aspect: Where to validate indices**
 
 * **Alternative 1 (Current choice): Parse integer in `Parser`, validate existence in `ModuleBook`.**
-  * Pros: Separation of concerns; model owns “does this task exist?”.
+  * Pros: Separation of concerns; model owns "does this task exist?".
   * Cons: Error messages may originate from different layers.
 
 * Alternative 2: Validate everything inside `DeleteCommand#execute()`.
@@ -300,8 +383,7 @@ The following class diagram shows the main classes involved in deletion and how 
   * Cons: Commands start duplicating model checks.
 
 
-//@@author Notchennie1
-### [Feature] List Registered Modules (`module list`)
+### [Feature] List Registered Modules (`modules`)
 
 #### Implementation
 
@@ -338,10 +420,10 @@ The following class diagram shows the main classes involved in listing modules a
 
 #### Design Considerations
 
-**Aspect: What is considered a “registered module”**
+**Aspect: What is considered a "registered module"**
 
 * **Alternative 1 (Current choice): Modules are created lazily when tasks are added.**
-  * Pros: No separate “register module” workflow; data model stays simple.
+  * Pros: No separate "register module" workflow; data model stays simple.
   * Cons: A module cannot exist without at least one task.
 
 * Alternative 2: Introduce explicit module registration (e.g., `addmodule CS2113`).
@@ -349,8 +431,7 @@ The following class diagram shows the main classes involved in listing modules a
   * Cons: Adds a new command and persistence requirements for modules without tasks.
 
 
-//@@author Notchennie1
-### [Feature] Semester Statistics (`semester stats SEMESTER_NAME`)
+### [Feature] Semester Statistics (`semesterstats`)
 
 #### Implementation
 
@@ -407,33 +488,281 @@ The following class diagram shows the main classes involved in computing semeste
   * Pros: Works for both weighted and unweighted tasks.
   * Cons: The weightage completion metric may be absent until the user assigns weightage.
 
-
+---
 
 ## Product scope
+
 ### Target user profile
 
-{Describe the target user profile}
+ModuleSync targets **NUS undergraduate students** who are simultaneously managing coursework across four to six modules, an internship search, and co-curricular commitments. More specifically, the target user:
+
+* is **comfortable using a terminal** and prefers typed commands over graphical interfaces
+* types faster than they click, and finds GUI task managers slow and distracting
+* organises work **by module code** (CS2113, MA1521, etc.) as their primary mental model
+* needs to track both simple to-do tasks and deadline tasks with exact due dates and times
+* wants to record **percentage weightages** against assessments so priority is reflected in their task list
+* wants to review **grades and CAP progress** across semesters without switching to a separate tool
+* may need to **reference past semesters** without accidentally editing closed academic records
 
 ### Value proposition
 
-{Describe the value proposition: what problem does it solve?}
+ModuleSync solves the problem of context-switching overhead for students who currently spread task tracking across multiple tools — a notes app for todos, a calendar for deadlines, a spreadsheet for grades. ModuleSync consolidates all three into one keyboard-driven CLI:
+
+* **One-shot task creation** — a single `add` command records a task under its module, optionally with a deadline and a weightage percentage. No multi-step wizard, no mouse required.
+* **Module-centric organisation** — tasks are grouped by module code, mirroring how a student's semester actually works rather than imposing an arbitrary folder structure.
+* **Deadline intelligence** — automatic overdue warnings on startup, same-day conflict detection (`check /conflicts`), and 48-hour urgency filtering (`check /urgent`) surface crunch periods before they arrive.
+* **Grade and CAP tracking** — recording a grade against a module immediately feeds into semester and cumulative CAP calculations. No separate spreadsheet needed.
+* **Multi-semester history** — past semesters are archived in read-only mode, letting students safely reference old tasks and grades without the risk of accidental edits.
+* **Human-readable storage** — data files are plain UTF-8 text. A student can read, back up, or migrate their data without any proprietary tools.
+
+---
 
 ## User Stories
 
-|Version| As a ... | I want to ... | So that I can ...|
-|--------|----------|---------------|------------------|
-|v1.0|new user|see usage instructions|refer to them when I forget how to use the application|
-|v2.0|user|find a to-do item by name|locate a to-do without having to go through the entire list|
-|v2.1|student|archive my current semester|transition to a new term while finalizing my academic records|
+| Version | As a … | I want to … | So that I can … |
+|---------|--------|-------------|-----------------|
+| v1.0 | new user | see a list of all available commands | learn how to use the application without reading external documentation |
+| v1.0 | student | add a task under a module code | organise my work by module the way I already think about it |
+| v1.0 | student | mark a task as done | keep track of what I have finished |
+| v1.0 | student | unmark a task | correct a mistake or reopen work I thought was complete |
+| v1.0 | student | delete a task | remove tasks that are no longer relevant |
+| v1.0 | student | list all my tasks | get an overview of everything I still need to do |
+| v2.0 | student | add a deadline to a task with an exact date and time | know precisely when each assessment is due |
+| v2.0 | student | assign a weightage percentage to a task | see at a glance which assessments matter most to my grade |
+| v2.0 | student | update the weightage of an existing task | correct a percentage I entered wrongly without deleting and recreating the task |
+| v2.0 | student | update the deadline of an existing task | correct a date I entered wrongly without deleting and recreating the task |
+| v2.0 | student | see only unfinished tasks for a specific module | focus on remaining work without wading through completed items |
+| v2.0 | student | view all deadlines sorted by due date | plan the next few weeks at a glance |
+| v2.0 | student | view my highest-priority tasks by priority score | focus on what is most urgent and most heavily weighted |
+| v2.0 | student | be warned about overdue tasks when I open the app | react immediately to anything I have missed |
+| v2.0 | student | check which days have multiple deadlines falling at the same time | plan ahead and avoid last-minute crunch |
+| v2.0 | student | check tasks due within the next 48 hours | focus on what is most immediately urgent |
+| v2.0 | student | view per-module completion statistics including on-time and late rates | reflect on my work habits for a specific module |
+| v2.0 | student | view a semester-wide task summary | understand my overall workload and progress at a glance |
+| v2.0 | student | record a final grade for a module | keep all academic records in one place |
+| v2.0 | student | view my current semester CAP and cumulative CAP | track my academic standing without opening a separate spreadsheet |
+| v2.0 | student | view my full grade history across all semesters | understand how my performance has evolved over time |
+| v2.0 | student | archive a module so it disappears from my main task list | reduce clutter once a module is fully completed |
+| v2.0 | student | restore an archived module | access its tasks again if I archived it by mistake |
+| v2.0 | student | create a new semester and switch to it | start a fresh task list without losing previous data |
+| v2.0 | student | switch to a past semester in read-only mode | safely reference old tasks and grades without risking accidental edits |
+| v2.0 | student | see which semester I am currently working in on startup | immediately know whether I am in the right context |
 
 ## Non-Functional Requirements
 
-{Give non-functional requirements}
+1. **Java version** — ModuleSync requires Java 17 or above. It must run on any operating system that provides a compatible JVM (Windows, macOS, Linux).
+2. **No network dependency** — ModuleSync is a fully offline, single-user application. It must function without any internet connection.
+3. **Response time** — All commands must respond within one second on a machine with at least 4 GB of RAM and a modern dual-core processor, for a dataset of up to 500 tasks across 10 semesters.
+4. **Data durability** — Every mutating command saves immediately to the relevant semester file before returning control to the user. A crash after a successful save must not cause data loss for that command.
+5. **Human-readable storage** — Data files must be plain UTF-8 text that a user can open and understand in any text editor without special tooling.
+6. **Single-user** — ModuleSync is designed for use by one person on one machine. Concurrent access to the same data directory by multiple processes is not supported and not required.
+7. **No GUI dependency** — The application must operate entirely through a terminal. No graphical display system (e.g. a desktop environment) is required.
+8. **Portability** — Transferring the `data/` folder to another machine running the same Java version must fully restore all semesters, tasks, and grades without any conversion step.
+
+---
 
 ## Glossary
 
-* *glossary item* - Definition
+| Term | Definition |
+|------|-----------|
+| **Module** | An academic course identified by a module code (e.g. `CS2113`). In ModuleSync, a module is created automatically the first time a task is added under its code. |
+| **Task** | A unit of work belonging to a module. A task is either a **Todo** (no due date) or a **Deadline** (has a due date and time). |
+| **Weightage** | An integer from `0` to `100` representing a task's percentage contribution to the module's overall grade. Weightage is optional — tasks without it are still fully functional. |
+| **Semester** | A named academic period (e.g. `AY2526-S2`) that groups a set of modules and their tasks. Each semester is stored in its own file under `data/`. |
+| **Active semester** | The semester the user is currently working in. All mutating commands (`add`, `delete`, `mark`, etc.) operate on the active semester's `ModuleBook`. |
+| **Archived semester** | A semester that has been closed and marked read-only. View commands (`list`, `cap`, `grades list`) still work; mutating commands are rejected. |
+| **Archived module** | A module within the active semester that has been hidden from the main `list` and `list /deadlines` views. It can be restored with `module unarchive`. |
+| **Display index** | The 1-based integer shown next to each task by the `list` command. Used as the identifier for `mark`, `unmark`, `delete`, `setweight`, and `setdeadline`. |
+| **CAP** | Cumulative Average Point — NUS's GPA metric on a 5.0 scale. Only CAP-bearing grades (`A+`, `A`, `A-`, `B+`, etc.) contribute. Grades such as `S`, `U`, `CS`, and `CU` are excluded. |
+| **MCs** | Modular Credits — the credit-unit weight of a module. Used as the denominator when computing weighted CAP averages. |
+| **Priority score** | A numeric value computed from a task's weightage (and deadline proximity for `Deadline` tasks) used to rank tasks in `list /top`. |
+| **`ModuleBook`** | The in-memory data structure that holds all `Module` objects for one semester. Each `Semester` owns exactly one `ModuleBook`. |
+| **`SemesterBook`** | The in-memory registry of all `Semester` objects. Maintains the pointer to the currently active semester. |
+| **`Command` (abstract)** | The base class for all executable user actions. `Parser` creates a concrete subclass; `ModuleSync` calls its `execute()` method. |
+| **`SemesterCommand`** | A subclass of `Command` for semester-lifecycle operations (switch, archive, list). These bypass the read-only guard because they operate at the semester level, not on tasks. |
+| **Read-only guard** | The check in `ModuleSync.run()` that rejects any command where `isMutating()` returns `true` if the current semester is archived. |
+
+---
 
 ## Instructions for manual testing
 
-{Give instructions on how to do a manual product testing e.g., how to load sample data to be used for testing}
+> **Note:** These instructions assume you are running the application from the project root using `./gradlew run` or `java -jar build/libs/modulesync.jar`. All commands are typed at the `>` prompt.
+
+### 1. Launch and first-run setup
+
+1. Delete the `data/` folder if it exists, to start from a clean state.
+2. Launch the application. You should see the welcome message and a prompt indicating no active semester.
+3. Create and switch to a new semester:
+   ```
+   semester new AY2526-S2
+   ```
+   Expected: `Created and switched to new semester: AY2526-S2`
+
+---
+
+### 2. Adding tasks
+
+```
+add /mod CS2113 /task Week 10 Quiz
+add /mod CS2113 /task Final Project /w 30
+add /mod CS2113 /task Submit iP /due 2026-04-15 /w 10
+add /mod CS2113 /task Project checkpoint /due 2026-04-15-0900
+add /mod MA1521 /task Problem Set 4 /w 20
+add /mod MA1521 /task Final Exam /due 2026-05-01-1300 /w 40
+```
+
+Expected after each `add`: confirmation showing the task description, module code, and weightage (if provided).
+
+---
+
+### 3. Listing tasks
+
+```
+list
+list /mod CS2113
+list /deadlines
+list /top 3
+list /notdone /mod CS2113
+modules
+```
+
+Expected:
+- `list` shows all tasks numbered from 1 with module codes, type (`T`/`D`), done status, and weightage where set.
+- `list /deadlines` shows only deadline tasks sorted earliest-first.
+- `list /top 3` shows the three tasks with the highest priority scores.
+- `list /notdone /mod CS2113` shows only incomplete CS2113 tasks, using **the same global indices as `list`**.
+- `modules` shows `CS2113 (4 task(s))` and `MA1521 (2 task(s))`.
+
+---
+
+### 4. Marking, unmarking, and deleting
+
+```
+mark 1
+list
+unmark 1
+list
+delete 6
+list
+```
+
+Expected:
+- After `mark 1`: task 1 shows `[X]`.
+- After `unmark 1`: task 1 shows `[ ]` again.
+- After `delete 6`: task count decreases by one; subsequent tasks renumber.
+
+---
+
+### 5. Weightage and deadline updates
+
+```
+setweight 1 15
+list /mod CS2113
+editweight 1 /w 20
+setdeadline 1 /by 2026-04-20
+editdeadline 1 /by 2026-04-20-2359
+list /mod CS2113
+```
+
+Expected: task 1 shows the updated weightage and deadline after each command.
+
+---
+
+### 6. Conflict and urgency checks
+
+Set the system clock or use already-close deadlines and run:
+
+```
+check /conflicts
+check /urgent
+```
+
+Expected:
+- `check /conflicts` lists any calendar days where two or more deadline tasks fall on the same date (e.g. April 15 has two tasks in the sample above).
+- `check /urgent` lists incomplete deadline tasks due within 48 hours of the current time.
+
+---
+
+### 7. Per-module and semester statistics
+
+```
+stats /mod CS2113
+semesterstats
+```
+
+Expected:
+- `stats /mod CS2113` shows total tasks, on-time/late/active counts and percentages, and average days-before-deadline (N/A until deadline tasks are marked done with a completion timestamp).
+- `semesterstats` shows module count, overall task counts and completion percentage, type breakdown, and weightage completion.
+
+---
+
+### 8. Grades and CAP
+
+```
+grade /mod CS2113 /grade A+
+grade /mod MA1521 /grade B+
+cap
+grades list
+```
+
+Expected:
+- `cap` shows a semester CAP calculated from the two grades and their credits (default 0 MCs until set — CAP will show N/A until credits are non-zero; set credits via the grade command if implemented, or note this limitation).
+- `grades list` shows both modules tabulated with their grade points.
+
+---
+
+### 9. Module archiving
+
+```
+module archive /mod MA1521
+list
+modules
+module unarchive /mod MA1521
+list
+```
+
+Expected:
+- After archiving: `list` no longer shows MA1521 tasks. `modules` still shows it marked `[archived]`.
+- After unarchiving: MA1521 tasks reappear in `list`.
+
+---
+
+### 10. Multi-semester workflow
+
+```
+semester new AY2527-S1
+add /mod CS3230 /task Assignment 1
+list
+semester switch AY2526-S2
+list
+```
+
+Expected:
+- After switching to `AY2527-S1`: only CS3230 tasks are shown.
+- After switching back to `AY2526-S2`: only the original semester's tasks are shown.
+
+---
+
+### 11. Read-only guard (archived semester)
+
+```
+semester switch AY2526-S2
+```
+Then archive AY2526-S2 from within it:
+```
+semester new AY2527-S1
+semester switch AY2526-S2
+add /mod CS2113 /task Should Fail
+```
+
+Expected: the `add` command is rejected with a message indicating the semester is archived and read-only.
+
+---
+
+### 12. Persistence across restarts
+
+1. Add at least one task, mark it done, and set its weightage.
+2. Exit with `bye`.
+3. Relaunch the application.
+
+Expected: all tasks, their done status, and their weightage are restored exactly as they were before exit.
