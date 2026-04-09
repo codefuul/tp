@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import seedu.modulesync.command.AddTodoCommand;
 import seedu.modulesync.command.ArchiveModuleCommand;
+import seedu.modulesync.command.GradeCommand;
 import seedu.modulesync.command.ListModulesCommand;
 import seedu.modulesync.command.ListNotDoneCommand;
 import seedu.modulesync.command.MarkCommand;
@@ -118,5 +119,24 @@ class ParserTest {
         
         assertThrows(ModuleSyncException.class, () -> parser.parse("semester new"));
         assertThrows(ModuleSyncException.class, () -> parser.parse("semester new "));
+    }
+
+    @Test
+    void parse_gradeCommand_returnsGradeCommand() throws ModuleSyncException {
+        Parser parser = new Parser();
+        assertTrue(parser.parse("grade /mod CS2113 /grade A+") instanceof GradeCommand);
+        assertTrue(parser.parse("grade /grade B /mod CS3243") instanceof GradeCommand);
+        assertTrue(parser.parse("grade /mod CS2113 /grade S") instanceof GradeCommand);
+        assertTrue(parser.parse("grade /mod CS2113 /grade U") instanceof GradeCommand);
+    }
+
+    @Test
+    void parse_gradeInvalidFormat_throws() {
+        Parser parser = new Parser();
+        assertThrows(ModuleSyncException.class, () -> parser.parse("grade /mod CS2113"));
+        assertThrows(ModuleSyncException.class, () -> parser.parse("grade /grade A+"));
+        assertThrows(ModuleSyncException.class, () -> parser.parse("grade"));
+        assertThrows(ModuleSyncException.class, () -> parser.parse("grade /mod"));
+        assertThrows(ModuleSyncException.class, () -> parser.parse("grade /grade"));
     }
 }

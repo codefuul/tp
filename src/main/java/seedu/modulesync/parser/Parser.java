@@ -14,6 +14,7 @@ import seedu.modulesync.command.CheckUrgentCommand;
 import seedu.modulesync.command.Command;
 import seedu.modulesync.command.DeleteCommand;
 import seedu.modulesync.command.ExitCommand;
+import seedu.modulesync.command.GradeCommand;
 import seedu.modulesync.command.ListCommand;
 import seedu.modulesync.command.ListDeadlinesCommand;
 import seedu.modulesync.command.ListGradesCommand;
@@ -54,6 +55,7 @@ public class Parser {
     private static final String CMD_STATS = "stats";
     private static final String CMD_MODULES = "modules";
     private static final String CMD_GRADES = "grades";
+    private static final String CMD_GRADE = "grade";
     private static final String CMD_MODULE = "module";
     private static final String CMD_SEMESTER_STATS = "semesterstats";
     private static final String CMD_SEMESTER = "semester";
@@ -67,6 +69,7 @@ public class Parser {
     private static final String PREFIX_MOD = "mod ";
     private static final String PREFIX_TASK = "task ";
     private static final String PREFIX_DUE = "due ";
+    private static final String PREFIX_GRADE = "grade ";
     private static final String PREFIX_WEIGHTAGE = "w ";
     private static final String PREFIX_ARCHIVE = "archive";
     private static final String PREFIX_UNARCHIVE = "unarchive";
@@ -79,10 +82,12 @@ public class Parser {
     private static final int CMD_SETDEADLINE_LENGTH = 11;
     private static final int CMD_STATS_LENGTH = 5;
     private static final int CMD_MODULE_LENGTH = 6;
+    private static final int CMD_GRADE_LENGTH = 5;
 
     private static final int PREFIX_MOD_LENGTH = 4;
     private static final int PREFIX_TASK_LENGTH = 5;
     private static final int PREFIX_DUE_LENGTH = 4;
+    private static final int PREFIX_GRADE_LENGTH = 6;
     private static final int PREFIX_WEIGHTAGE_LENGTH = 2;
 
     private static final int MIN_WEIGHTAGE = 0;
@@ -165,6 +170,9 @@ public class Parser {
         if (trimmed.toLowerCase().startsWith(CMD_ADD)) {
             return parseAdd(trimmed);
         }
+        if (trimmed.toLowerCase().startsWith(CMD_GRADE)) {
+            return parseGrade(trimmed);
+        }
         if (trimmed.toLowerCase().startsWith(CMD_LIST)) {
             return parseList(trimmed);
         }
@@ -242,6 +250,32 @@ public class Parser {
         }
 
         return new AddTodoCommand(module, task, weightage);
+    }
+
+    /**
+     * Parses a "grade" command and returns the corresponding GradeCommand.
+     *
+     * @param input the full grade command string
+     * @return a {@link GradeCommand} with the parsed module code and grade
+     * @throws ModuleSyncException if the module code or grade is missing or malformed
+     */
+    private Command parseGrade(String input) throws ModuleSyncException {
+        String remainder = extractRemainder(input, CMD_GRADE_LENGTH);
+        if (remainder.isEmpty()) {
+            throw new ModuleSyncException("Usage: grade /mod MODULECODE /grade GRADEVALUE");
+        }
+
+        String[] tokens = remainder.split("/");
+        String module = extractFieldFromTokens(tokens, PREFIX_MOD, PREFIX_MOD_LENGTH);
+        String grade = extractFieldFromTokens(tokens, PREFIX_GRADE, PREFIX_GRADE_LENGTH);
+
+        if (module == null || module.isEmpty() || grade == null || grade.isEmpty()) {
+            throw new ModuleSyncException("Usage: grade /mod MODULECODE /grade GRADEVALUE");
+        }
+        assert module != null && !module.trim().isEmpty() : "Module code should be parsed for grade command";
+        assert grade != null && !grade.trim().isEmpty() : "Grade should be parsed for grade command";
+
+        return new GradeCommand(module, grade);
     }
 
     /**
