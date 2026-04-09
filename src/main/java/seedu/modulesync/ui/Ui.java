@@ -572,8 +572,9 @@ public class Ui {
         int index = 1;
         for (Module module : moduleBook.getModules()) {
             String status = module.isArchived() ? " [archived]" : "";
+            String grade = module.hasGrade() ? " [Grade: " + module.getGrade() + "]" : "";
             String moduleInfo = index + ". " + module.getCode() + " (" 
-                    + module.getTasks().size() + " task(s))" + status;
+                    + module.getTasks().size() + " task(s))" + grade + status;
             System.out.println(moduleInfo);
             index++;
         }
