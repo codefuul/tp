@@ -690,7 +690,6 @@ public class Ui {
      *
      * @param semesterBook the semester book containing the active semester
      */
-    //@@author Huang-Hau-Shuan
     public void showCurrentSemester(SemesterBook semesterBook) {
         String name = semesterBook.getCurrentSemesterName();
         if (name == null) {
