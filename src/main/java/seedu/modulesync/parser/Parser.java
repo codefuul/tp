@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
 import seedu.modulesync.command.AddDeadlineCommand;
+import seedu.modulesync.command.AddModuleCommand;
 import seedu.modulesync.command.AddTodoCommand;
 import seedu.modulesync.command.ArchiveModuleCommand;
 import seedu.modulesync.command.ArchiveSemesterCommand;
@@ -14,6 +15,7 @@ import seedu.modulesync.command.CheckConflictsCommand;
 import seedu.modulesync.command.CheckUrgentCommand;
 import seedu.modulesync.command.Command;
 import seedu.modulesync.command.DeleteCommand;
+import seedu.modulesync.command.DeleteModuleCommand;
 import seedu.modulesync.command.EditDeadlineCommand;
 import seedu.modulesync.command.EditWeightCommand;
 import seedu.modulesync.command.ExitCommand;
@@ -28,6 +30,7 @@ import seedu.modulesync.command.ListTopCommand;
 import seedu.modulesync.command.MarkCommand;
 import seedu.modulesync.command.NewSemesterCommand;
 import seedu.modulesync.command.SemesterStatsCommand;
+import seedu.modulesync.command.SetCreditsCommand;
 import seedu.modulesync.command.SetDeadlineCommand;
 import seedu.modulesync.command.SetWeightCommand;
 import seedu.modulesync.command.StatsCommand;
@@ -56,6 +59,7 @@ public class Parser {
     private static final String CMD_DELETE = "delete";
     private static final String CMD_SETWEIGHT = "setweight";
     private static final String CMD_EDITWEIGHT = "editweight";
+    private static final String CMD_SETCREDITS = "setcredits";
     private static final String CMD_SETDEADLINE = "setdeadline";
     private static final String CMD_EDITDEADLINE = "editdeadline";
     private static final String CMD_STATS = "stats";
@@ -84,6 +88,7 @@ public class Parser {
     private static final int CMD_DELETE_LENGTH = 6;
     private static final int CMD_SETWEIGHT_LENGTH = 9;
     private static final int CMD_EDITWEIGHT_LENGTH = 10;
+    private static final int CMD_SETCREDITS_LENGTH = 10;
     private static final int CMD_SETDEADLINE_LENGTH = 11;
     private static final int CMD_EDITDEADLINE_LENGTH = 12;
     private static final int CMD_STATS_LENGTH = 5;
@@ -196,6 +201,9 @@ public class Parser {
         if (trimmed.toLowerCase().startsWith(CMD_EDITWEIGHT)) {
             return parseEditWeight(trimmed);
         }
+        if (trimmed.toLowerCase().startsWith(CMD_SETCREDITS)) {
+            return parseSetCredits(trimmed);
+        }
         if (trimmed.toLowerCase().startsWith(CMD_SETDEADLINE)) {
             return parseSetDeadline(trimmed);
         }
@@ -267,10 +275,15 @@ public class Parser {
         String due = extractFieldFromTokens(tokens, PREFIX_DUE, PREFIX_DUE_LENGTH);
         String weightageRaw = extractFieldFromTokens(tokens, PREFIX_WEIGHTAGE, PREFIX_WEIGHTAGE_LENGTH);
 
-        if (module == null || module.isEmpty() || task == null || task.isEmpty()) {
+        if (module == null || module.isEmpty()) {
             throw new ModuleSyncException(ADD_USAGE);
         }
         validateModuleCode(module);
+
+        if (task == null || task.isEmpty()) {
+            return new AddModuleCommand(module);
+        }
+        
         assert module != null && !module.trim().isEmpty() : "Module code should be parsed for add command";
         assert task != null && !task.trim().isEmpty() : "Task description should be parsed for add command";
 
@@ -501,6 +514,16 @@ public class Parser {
      */
     private Command parseDelete(String input) throws ModuleSyncException {
         String remainder = extractRemainder(input, CMD_DELETE_LENGTH);
+        
+        if (remainder.toLowerCase().startsWith("module /mod")) {
+            String moduleCode = remainder.substring("module /mod".length()).trim();
+            if (moduleCode.isEmpty()) {
+                throw new ModuleSyncException("Usage: delete module /mod MODULE_CODE");
+            }
+            validateModuleCode(moduleCode);
+            return new DeleteModuleCommand(moduleCode);
+        }
+
         int taskNumber = parseTaskNumber(remainder, CMD_DELETE);
         assert taskNumber > 0 : "Parsed task number must be strictly positive";
         return new DeleteCommand(taskNumber);
@@ -533,6 +556,42 @@ public class Parser {
         assert taskNumber > 0 : "Parsed task number must be strictly positive";
         assert weightage >= 0 && weightage <= 100 : "Parsed weightage must be 0–100";
         return new SetWeightCommand(taskNumber, weightage);
+    }
+
+    /**
+     * Parses a "setcredits" command.
+     * Format: {@code setcredits /mod MODULECODE /mc CREDITS}
+     *
+     * @param input the full setcredits command string
+     * @return a {@link SetCreditsCommand} with the parsed module code and credits
+     * @throws ModuleSyncException if the arguments are missing or malformed
+     */
+    private Command parseSetCredits(String input) throws ModuleSyncException {
+        String remainder = extractRemainder(input, CMD_SETCREDITS_LENGTH);
+        if (remainder.isEmpty()) {
+            throw new ModuleSyncException("Usage: setcredits /mod MODULECODE /mc CREDITS");
+        }
+
+        String[] tokens = remainder.split("/(?i)(?=(mod |mc ))");
+        String moduleCode = extractFieldFromTokens(tokens, PREFIX_MOD, PREFIX_MOD_LENGTH);
+        String mcStr = extractFieldFromTokens(tokens, "mc ", 3);
+
+        if (moduleCode == null || moduleCode.isEmpty() || mcStr == null || mcStr.isEmpty()) {
+            throw new ModuleSyncException("Usage: setcredits /mod MODULECODE /mc CREDITS");
+        }
+        validateModuleCode(moduleCode);
+
+        int credits;
+        try {
+            credits = Integer.parseInt(mcStr);
+            if (credits < 0 || credits > 40) {
+                throw new ModuleSyncException("Credits must be between 0 and 40.");
+            }
+        } catch (NumberFormatException e) {
+            throw new ModuleSyncException("Credits must be a valid integer between 0 and 40.");
+        }
+
+        return new SetCreditsCommand(moduleCode, credits);
     }
 
     /**

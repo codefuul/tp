@@ -7,15 +7,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import seedu.modulesync.command.AddModuleCommand;
 import seedu.modulesync.command.AddTodoCommand;
 import seedu.modulesync.command.ArchiveModuleCommand;
 import seedu.modulesync.command.ArchiveSemesterCommand;
+import seedu.modulesync.command.DeleteModuleCommand;
 import seedu.modulesync.command.GradeCommand;
 import seedu.modulesync.command.ListModulesCommand;
 import seedu.modulesync.command.ListNotDoneCommand;
 import seedu.modulesync.command.MarkCommand;
 import seedu.modulesync.command.NewSemesterCommand;
 import seedu.modulesync.command.SemesterStatsCommand;
+import seedu.modulesync.command.SetCreditsCommand;
 import seedu.modulesync.command.UnarchiveModuleCommand;
 import seedu.modulesync.command.UnarchiveSemesterCommand;
 import seedu.modulesync.command.UnmarkCommand;
@@ -36,7 +39,6 @@ class ParserTest {
     @Test
     void parse_missingFields_throws() {
         Parser parser = new Parser();
-        assertThrows(ModuleSyncException.class, () -> parser.parse("add /mod CS2113"));
         assertThrows(ModuleSyncException.class, () -> parser.parse("add /task OnlyTask"));
         assertThrows(ModuleSyncException.class, () -> parser.parse("add"));
     }
@@ -162,5 +164,47 @@ class ParserTest {
         assertThrows(ModuleSyncException.class, () -> parser.parse("grade"));
         assertThrows(ModuleSyncException.class, () -> parser.parse("grade /mod"));
         assertThrows(ModuleSyncException.class, () -> parser.parse("grade /grade"));
+    }
+    @Test
+    void parse_moduleAddAndModuleDelete_returnsCorrectCommands() throws ModuleSyncException {
+        Parser parser = new Parser();
+        assertTrue(parser.parse("add /mod CS1010S") instanceof AddModuleCommand);
+        assertTrue(parser.parse("delete module /mod CS1010S") instanceof DeleteModuleCommand);
+    }
+
+    @Test
+    void parse_moduleAddAndModuleDeleteInvalidFormat_throws() {
+        Parser parser = new Parser();
+        // missing task/flags throws usage correctly, but bad module code throws exception
+        assertThrows(ModuleSyncException.class, () -> parser.parse("add /mod !@#$"));
+        
+        assertThrows(ModuleSyncException.class, () -> parser.parse("delete module /mod"));
+        assertThrows(ModuleSyncException.class, () -> parser.parse("delete module /mod !@#$"));
+    }
+
+    @Test
+    void parse_setCredits_returnsSetCreditsCommand() throws ModuleSyncException {
+        Parser parser = new Parser();
+        assertTrue(parser.parse("setcredits /mod CS1010S /mc 4") instanceof SetCreditsCommand);
+        assertTrue(parser.parse("setcredits /mod CS1010S /mc 0") instanceof SetCreditsCommand);
+        assertTrue(parser.parse("setcredits /mod CS1010S /mc 40") instanceof SetCreditsCommand);
+    }
+
+    @Test
+    void parse_setCreditsBoundsAndFormat_throws() {
+        Parser parser = new Parser();
+        
+        // Exceeds upper bounds
+        assertThrows(ModuleSyncException.class, () -> parser.parse("setcredits /mod CS1010S /mc 41"));
+        
+        // Exceeds lower bounds
+        assertThrows(ModuleSyncException.class, () -> parser.parse("setcredits /mod CS1010S /mc -1"));
+        
+        // Invalid string representation
+        assertThrows(ModuleSyncException.class, () -> parser.parse("setcredits /mod CS1010S /mc four"));
+        
+        // Missing arguments entirely
+        assertThrows(ModuleSyncException.class, () -> parser.parse("setcredits /mod CS1010S"));
+        assertThrows(ModuleSyncException.class, () -> parser.parse("setcredits /mc 4"));
     }
 }
