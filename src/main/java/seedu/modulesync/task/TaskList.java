@@ -9,6 +9,15 @@ import seedu.modulesync.exception.ModuleSyncException;
 public class TaskList {
     private final List<Task> tasks = new ArrayList<>();
 
+    private void checkDuplicateDescription(String description) throws ModuleSyncException {
+        for (Task task : tasks) {
+            if (task.getDescription().trim().equalsIgnoreCase(description.trim())) {
+                throw new ModuleSyncException(
+                        "Duplicate task detected! A task with this description already exists in this module.");
+            }
+        }
+    }
+
     public Task addTodo(String moduleCode, String description) throws ModuleSyncException {
         return addTodo(moduleCode, description, null);
     }
@@ -28,6 +37,7 @@ public class TaskList {
         if (description == null || description.trim().isEmpty()) {
             throw new ModuleSyncException("Task description cannot be empty.");
         }
+        checkDuplicateDescription(description);
         Todo todo = new Todo(moduleCode, description.trim());
         if (weightage != null) {
             assert weightage >= 0 && weightage <= 100 : "Weightage must be between 0 and 100";
@@ -61,6 +71,7 @@ public class TaskList {
         if (description == null || description.trim().isEmpty()) {
             throw new ModuleSyncException("Task description cannot be empty.");
         }
+        checkDuplicateDescription(description);
         Deadline deadline = new Deadline(moduleCode, description.trim(), by);
         if (weightage != null) {
             assert weightage >= 0 && weightage <= 100 : "Weightage must be between 0 and 100";
