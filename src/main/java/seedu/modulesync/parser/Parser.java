@@ -252,6 +252,7 @@ public class Parser {
         if (module == null || module.isEmpty() || task == null || task.isEmpty()) {
             throw new ModuleSyncException(ADD_USAGE);
         }
+        validateModuleCode(module);
         assert module != null && !module.trim().isEmpty() : "Module code should be parsed for add command";
         assert task != null && !task.trim().isEmpty() : "Task description should be parsed for add command";
 
@@ -285,6 +286,7 @@ public class Parser {
         if (module == null || module.isEmpty() || grade == null || grade.isEmpty()) {
             throw new ModuleSyncException("Usage: grade /mod MODULECODE /grade GRADEVALUE");
         }
+        validateModuleCode(module);
 
         java.util.List<String> validGrades = java.util.List.of(
                 "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "D+", "D", "F", "CS", "CU", "S", "U"
@@ -399,6 +401,13 @@ public class Parser {
         return null;
     }
 
+    private void validateModuleCode(String moduleCode) throws ModuleSyncException {
+        if (moduleCode == null || !moduleCode.matches("^[a-zA-Z0-9]+$")) {
+            throw new ModuleSyncException(
+                    "Invalid module code! Module codes must be a single alphanumeric word with no special characters.");
+        }
+    }
+
     /**
      * Extracts the remainder of a command string after the command keyword.
      *
@@ -430,6 +439,7 @@ public class Parser {
             if (moduleCode.startsWith("/")) {
                 throw new ModuleSyncException("Usage: mark /mod MODULE_CODE /all");
             }
+            validateModuleCode(moduleCode);
             return new MarkCommand(moduleCode);
         }
 
@@ -623,6 +633,7 @@ public class Parser {
             if (tokens[1].startsWith("/")) {
                 throw new ModuleSyncException("Usage: list /mod MODULE_CODE");
             }
+            validateModuleCode(tokens[1]);
             return new ListCommand(tokens[1]);
         }
 
@@ -643,6 +654,7 @@ public class Parser {
                     && !tokens[modFlagIndex + 1].startsWith("/")) {
                 String moduleCode = tokens[modFlagIndex + 1];
                 assert moduleCode != null && !moduleCode.isBlank() : "Module code token must not be blank";
+                validateModuleCode(moduleCode);
                 return new ListNotDoneCommand(moduleCode);
             }
         }
@@ -724,6 +736,7 @@ public class Parser {
 
         if (scope.equalsIgnoreCase(PREFIX_LIST_MOD)) {
             assert !value.isBlank() : "Module code must not be blank for stats command";
+            validateModuleCode(value);
             return new StatsCommand(value);
         }
 
@@ -871,6 +884,7 @@ public class Parser {
         if (moduleCode == null || moduleCode.isEmpty()) {
             throw new ModuleSyncException("Usage: module archive /mod MODULECODE");
         }
+        validateModuleCode(moduleCode);
 
         return new ArchiveModuleCommand(moduleCode);
     }
@@ -906,6 +920,7 @@ public class Parser {
         if (moduleCode == null || moduleCode.isEmpty()) {
             throw new ModuleSyncException("Usage: module unarchive /mod MODULECODE");
         }
+        validateModuleCode(moduleCode);
 
         return new UnarchiveModuleCommand(moduleCode);
     }
