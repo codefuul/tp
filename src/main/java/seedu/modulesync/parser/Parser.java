@@ -243,7 +243,7 @@ public class Parser {
             throw new ModuleSyncException(ADD_USAGE);
         }
 
-        String[] tokens = remainder.split("/");
+        String[] tokens = remainder.split("/(?i)(?=(mod |task |due |w |grade ))");
         String module = extractFieldFromTokens(tokens, PREFIX_MOD, PREFIX_MOD_LENGTH);
         String task = extractFieldFromTokens(tokens, PREFIX_TASK, PREFIX_TASK_LENGTH);
         String due = extractFieldFromTokens(tokens, PREFIX_DUE, PREFIX_DUE_LENGTH);
@@ -278,7 +278,7 @@ public class Parser {
             throw new ModuleSyncException("Usage: grade /mod MODULECODE /grade GRADEVALUE");
         }
 
-        String[] tokens = remainder.split("/");
+        String[] tokens = remainder.split("/(?i)(?=(mod |task |due |w |grade ))");
         String module = extractFieldFromTokens(tokens, PREFIX_MOD, PREFIX_MOD_LENGTH);
         String grade = extractFieldFromTokens(tokens, PREFIX_GRADE, PREFIX_GRADE_LENGTH);
 
