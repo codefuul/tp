@@ -584,6 +584,80 @@ The `setcredits` bounding limit enforces absolute `0` to `40` Credit (MC) limits
 
 ---
 
+### [Feature] Ranking Tasks by Priority (`list /top`)
+
+#### Overview
+
+The priority ranking feature allows users to surface their most urgent work with `list /top N`.
+Each task carries a **priority score** — a single integer displayed as `[Priority: N]` — computed
+from two inputs: the task's weightage and, for deadline tasks, how soon the deadline falls.
+
+#### Priority Score Formula
+
+**For `Todo` tasks (no deadline):**
+
+```
+priority = weightage          (0 if no weightage is set)
+```
+
+**For `Deadline` tasks:**
+
+```
+priority = weightage + urgencyScore
+
+urgencyScore = (elapsedDays × URGENCY_SCALE) + MINIMUM_DEADLINE_URGENCY_SCORE
+```
+
+Where:
+- `elapsedDays` = number of days already consumed within a 30-day urgency window
+  (i.e. `30 − daysUntilDeadline`, clamped to 0–30)
+- `URGENCY_SCALE = 6` — each day of additional urgency is worth 6 priority points
+- `MINIMUM_DEADLINE_URGENCY_SCORE = 1` — every deadline task receives at least 1 urgency point
+- If the deadline has already passed, `urgencyScore` is capped at `MAX = 31 × 6 = 186`
+
+**Score ranges:**
+
+| Condition | Urgency contribution |
+|---|---|
+| Overdue (deadline passed) | 186 |
+| Due today | 181 |
+| Due in 7 days | 181 − (7 × 6) = 139 |
+| Due in 30+ days | 1 |
+| Todo (no deadline) | 0 |
+
+Because the urgency range (1–186) substantially exceeds the weightage range (0–100), **deadline
+proximity is the primary ranking driver**. A lower-weighted task due today will outscore a
+higher-weighted task due in one week if the weightage gap is smaller than the urgency difference
+(e.g. a 10% task due today scores `10 + 181 = 191`; a 50% task due in 7 days scores
+`50 + 139 = 189`).
+
+#### Design Considerations
+
+**Aspect: Urgency scale factor**
+
+* **Alternative 1 (Current choice): `URGENCY_SCALE = 6`, additive formula.**
+  * Pros: Deadline proximity dominates for imminent tasks while weightage still acts as a
+    meaningful tiebreaker for tasks with similar deadlines. Single constant to tune.
+  * Cons: The interaction between the two components is not immediately intuitive from the
+    displayed number alone.
+
+* **Alternative 2: Multiplicative formula (`weightage × urgency`).**
+  * Pros: Completely eliminates tasks with zero weightage from the top of the list.
+  * Cons: Unweighted tasks always score 0 regardless of urgency; requires rewriting the
+    base class method.
+
+**Aspect: Urgency window (30 days)**
+
+* **Alternative 1 (Current choice): Tasks due beyond 30 days receive minimum urgency (1).**
+  * Pros: Keeps the score bounded and focuses attention on the near term.
+  * Cons: All tasks due in ≥ 30 days look identical in urgency contribution.
+
+* **Alternative 2: Continuous decay over a longer window (e.g. 90 days).**
+  * Pros: Fine-grained urgency even for distant deadlines.
+  * Cons: Scores become harder to reason about; distant tasks gain undue urgency weight.
+
+---
+
 ## Product scope
 
 ### Target user profile
@@ -670,7 +744,7 @@ ModuleSync solves the problem of context-switching overhead for students who cur
 | **Display index** | The 1-based integer shown next to each task by the `list` command. Used as the identifier for `mark`, `unmark`, `delete`, `setweight`, and `setdeadline`. |
 | **CAP** | Cumulative Average Point — NUS's GPA metric on a 5.0 scale. Only CAP-bearing grades (`A+`, `A`, `A-`, `B+`, etc.) contribute. Grades such as `S`, `U`, `CS`, and `CU` are excluded. |
 | **MCs** | Modular Credits — the credit-unit weight of a module. Used as the denominator when computing weighted CAP averages. |
-| **Priority score** | A numeric value computed from a task's weightage (and deadline proximity for `Deadline` tasks) used to rank tasks in `list /top`. |
+| **Priority score** | A numeric value used to rank tasks in `list /top`. For `Todo` tasks: score = weightage (0 if unset). For `Deadline` tasks: score = weightage + urgency score, where urgency score = `(daysElapsedInWindow × URGENCY_SCALE) + 1` and scales up as the deadline approaches (maximum when overdue, minimum when due in ≥ 30 days). See the Implementation chapter for the full formula. |
 | **`ModuleBook`** | The in-memory data structure that holds all `Module` objects for one semester. Each `Semester` owns exactly one `ModuleBook`. |
 | **`SemesterBook`** | The in-memory registry of all `Semester` objects. Maintains the pointer to the currently active semester. |
 | **`Command` (abstract)** | The base class for all executable user actions. `Parser` creates a concrete subclass; `ModuleSync` calls its `execute()` method. |
