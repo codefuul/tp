@@ -1,0 +1,78 @@
+@startuml ArchitectureDiagram
+
+skinparam componentStyle rectangle
+skinparam ArrowColor #555555
+skinparam ComponentBackgroundColor #FEFECE
+skinparam ComponentBorderColor #A0A0A0
+skinparam PackageBackgroundColor #F5F5FF
+skinparam PackageBorderColor #9090C0
+skinparam NoteBackgroundColor #FFFFEE
+skinparam NoteBorderColor #AAAAAA
+skinparam defaultFontName Arial
+
+actor User
+
+package "ModuleSync Application" {
+
+    component "Ui" as UI {
+    }
+
+    component "Parser" as PARSER {
+    }
+
+    component "ModuleSync\n(Main Loop)" as MAIN {
+    }
+
+    package "Data Model" {
+        component "SemesterBook" as SB
+        component "Semester" as SEM
+        component "ModuleBook" as MB
+        component "Module" as MOD
+        component "TaskList / Task" as TASK
+    }
+
+    package "Storage" {
+        component "SemesterStorage" as SS
+        component "Storage" as ST
+    }
+
+    component "Command\n(abstract)" as CMD {
+    }
+
+}
+
+User -down-> UI : stdin / stdout
+
+UI -down-> PARSER : raw String
+PARSER -down-> MAIN : Command object
+MAIN -down-> CMD : dispatches
+
+CMD -right-> MB : reads / mutates
+CMD -right-> ST  : saves
+CMD -up-> UI     : show...()
+
+MAIN -left-> SB  : semester lifecycle
+
+SB   -down-> SEM
+SEM  -down-> MB
+MB   -down-> MOD
+MOD  -down-> TASK
+
+SS ..> SB : load / save
+ST ..> MB : load / save
+
+note right of CMD
+  Every concrete command
+  (AddTodoCommand, DeleteCommand,
+  MarkCommand, …) extends Command.
+  SemesterCommand subclass handles
+  semester-lifecycle operations.
+end note
+
+note bottom of MAIN
+  Enforces read-only guard:
+  archived semesters reject
+  all mutating commands.
+end note
+
+@enduml
