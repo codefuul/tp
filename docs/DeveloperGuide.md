@@ -403,7 +403,7 @@ The following class diagram shows the main classes involved in listing modules a
   * Cons: Adds a new command and persistence requirements for modules without tasks.
 
 
-### [Feature] Semester Statistics (`semester stats`)
+### [Feature] Viewing Semester Statistics (`semester stats`)
 
 #### Implementation
 
