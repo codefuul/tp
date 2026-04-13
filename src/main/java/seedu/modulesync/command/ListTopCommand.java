@@ -26,6 +26,8 @@ public class ListTopCommand extends Command {
 
     @Override
     public void execute(ModuleBook moduleBook, Storage storage, Ui ui) {
+        assert moduleBook != null : "ModuleBook must not be null when executing ListTopCommand";
+        assert ui != null : "Ui must not be null when executing ListTopCommand";
         ui.showTopUrgentTasks(moduleBook, topCount);
     }
 }
