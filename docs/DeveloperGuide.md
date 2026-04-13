@@ -14,37 +14,9 @@
 
 ModuleSync is structured as a layered architecture with five major components. Each layer depends only on layers below it — no inner component imports from `Ui` or `Parser`.
 
-```
-         ┌─────────────────────────────────────────┐
-         │               User (CLI)                │
-         └──────────────────┬──────────────────────┘
-                            │ stdin / stdout
-         ┌──────────────────▼──────────────────────┐
-         │                  Ui                     │
-         │  Reads all input. Prints all output.    │
-         └──────────────────┬──────────────────────┘
-                            │ raw String
-         ┌──────────────────▼──────────────────────┐
-         │                Parser                   │
-         │  Converts raw strings into Commands.    │
-         └──────────────────┬──────────────────────┘
-                            │ Command object
-         ┌──────────────────▼──────────────────────┐
-         │               ModuleSync                │
-         │  Main run loop. Dispatches commands.    │
-         │  Enforces read-only guard.              │
-         └──────┬───────────┬──────────────┬───────┘
-                │           │              │
-   ┌────────────▼──┐  ┌─────▼──────┐  ┌───▼────────────┐
-   │  Data Model   │  │  Storage   │  │  SemesterBook  │
-   │  SemesterBook │  │  Storage   │  │  Semester      │
-   │  Semester     │  │  Semester  │  │                │
-   │  ModuleBook   │  │  Storage   │  │                │
-   │  Module       │  │            │  │                │
-   │  TaskList     │  │            │  │                │
-   │  Task         │  │            │  │                │
-   └───────────────┘  └────────────┘  └────────────────┘
-```
+<img src="images/ArchitectureDiagram.png" alt="Architecture overview diagram" />
+
+> Generated from [`docs/diagrams/ArchitectureDiagram.puml`](diagrams/ArchitectureDiagram.puml)
 
 ### Component Responsibilities
 
